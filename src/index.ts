@@ -1,15 +1,21 @@
-import { Probot } from "probot";
+import { Probot } from 'probot';
+
+import createPRtoDT from './services/createPRtoDT';
+
+const REPO_NAME = 'three-ts-types';
 
 export = (app: Probot) => {
-  app.on("issues.opened", async (context) => {
-    const issueComment = context.issue({
-      body: "Thanks for opening this issue!",
-    });
-    await context.octokit.issues.createComment(issueComment);
-  });
-  // For more information on building apps:
-  // https://probot.github.io/docs/
+    app.on('push', async context => {
+        const {
+            payload: { ref, repository },
+        } = context;
 
-  // To get your app running against GitHub, see:
-  // https://probot.github.io/docs/development/
+        /**
+         * check if we've pushed to "three-ts-types" & master
+         */
+        if (repository.name === REPO_NAME && ref.includes('master')) {
+            context.log.info(`change in master@three-ts-types`);
+            await createPRtoDT(context);
+        }
+    });
 };
