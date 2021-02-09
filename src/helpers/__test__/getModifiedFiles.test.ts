@@ -1,6 +1,6 @@
 import push from '../../__test__/fixtures/push.json';
 
-import { getModifiedFiles } from '../getModifiedFiles';
+import { getModifiedFiles } from '../files';
 
 describe('GetModifiedFiles', () => {
     it('should return an array if no checker is provided', () => {

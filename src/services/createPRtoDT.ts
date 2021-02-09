@@ -1,13 +1,18 @@
 import { Context } from 'probot';
 
-import { getModifiedFiles } from '../helpers/getModifiedFiles';
+import { getModifiedFiles } from '../helpers/files';
 import { mapSeries } from '../helpers/asyncUtil';
+import { checkPRList } from '../helpers/pulls';
 
-const REPO_OWNER = 'three-types';
-const ORIGIN_REPO = 'three-ts-types';
-const DESTINATION_REPO = 'DefinitelyTyped';
-const PR_DESTINATION_BRANCH_NAME = 'three';
-const BOT_BRANCH_NAME = 'three-types-bot-updates';
+import {
+    REPO_OWNER,
+    DESTINATION_REPO,
+    BOT_BRANCH_NAME,
+    PR_DESTINATION_BRANCH_NAME,
+    ORIGIN_REPO,
+    BOT_LABEL_NAME,
+    DEFAULT_REVIEWERS,
+} from '../references/constants';
 
 export default async function createPRtoDT(context: Context) {
     const modifiedFiles = getModifiedFiles(context.payload.commits, filename => filename.includes('types/three'));
@@ -33,7 +38,6 @@ export default async function createPRtoDT(context: Context) {
                 repo: DESTINATION_REPO,
                 branch: PR_DESTINATION_BRANCH_NAME,
             });
-            console.log(data);
             // create the three-types-bot-updates branch
             await context.octokit.git.createRef({
                 owner: REPO_OWNER,
@@ -44,7 +48,7 @@ export default async function createPRtoDT(context: Context) {
         }
 
         // now we do some file magic
-        mapSeries(async file => {
+        await mapSeries(async file => {
             // get the original content
             const { data: originalData } = await context.octokit.repos.getContent({
                 owner: REPO_OWNER,
@@ -95,14 +99,43 @@ export default async function createPRtoDT(context: Context) {
             }
         }, modifiedFiles);
 
-        /**
-         * is there a PR open?
-         * IF FALSE
-         * create PR from branch to `three` branch
-         * assign reviewers to PR
-         * ELSE
-         * nothing
-         */
+        // check if there's a PR with the label attached
+        const doesBranchAlreadyHavePr = await checkPRList(
+            context,
+            pull => pull.labels.filter(label => label.name === BOT_LABEL_NAME).length > 0,
+        );
+
+        if (!doesBranchAlreadyHavePr) {
+            context.log.info('branch has no PR associated');
+
+            // create the PR
+            const {
+                data: { number },
+            } = await context.octokit.pulls.create({
+                owner: REPO_OWNER,
+                repo: DESTINATION_REPO,
+                head: BOT_BRANCH_NAME,
+                base: PR_DESTINATION_BRANCH_NAME,
+            });
+
+            // add default reviewers
+            await context.octokit.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers', {
+                owner: REPO_OWNER,
+                repo: DESTINATION_REPO,
+                pull_number: number,
+                reviewers: DEFAULT_REVIEWERS,
+            });
+
+            // add the label
+            await context.octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/labels', {
+                owner: REPO_OWNER,
+                repo: DESTINATION_REPO,
+                issue_number: number,
+                labels: [BOT_LABEL_NAME],
+            });
+
+            context.log.info('completed');
+        }
     } catch (err) {
         context.log.error(err);
     }
