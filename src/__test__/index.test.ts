@@ -1,6 +1,3 @@
-// You can import your modules
-// import index from '../src/index'
-
 import nock from 'nock';
 // Requiring our app implementation
 import myProbotApp from '../index';
@@ -12,6 +9,13 @@ const fs = require('fs');
 const path = require('path');
 
 const privateKey = fs.readFileSync(path.join(__dirname, 'fixtures/mock-cert.pem'), 'utf-8');
+
+const mockCreatePRtoDT = jest.fn();
+jest.mock('../services/createPRtoDT', () => ({
+    createPRtoDT: () => {
+        mockCreatePRtoDT();
+    },
+}));
 
 describe('My Probot app', () => {
     let probot: any;
@@ -31,30 +35,37 @@ describe('My Probot app', () => {
         probot.load(myProbotApp);
     });
 
-    it('should update three-types/DefinitelyTyped/three-types-bot-updates on push to three-types/three-ts-types/master', async () => {
-        const mock = nock('https://api.github.com')
-            .get('/repos/three-types/DefinitelyTyped/branches/three-types-bot-updates')
-            .reply(200);
-        // .get('/repos/three-types/DefinitelyTyped/branches/three')
-        // .reply(200, {
-        //     commit: {
-        //         sha: '1',
-        //     },
-        // })
-        // .post('/repos/three-types/DefinitelyTyped/git/refs')
-        // .reply(200);
+    it('should call createPRtoDT on push', async () => {
+        const mock = nock('https://api.github.com');
 
         // Receive a webhook event
         await probot.receive({ name: 'push', payload });
 
         expect(mock.pendingMocks()).toStrictEqual([]);
+        expect(mockCreatePRtoDT).toHaveBeenCalled();
+    });
+
+    it('should not call createPRtoDT on push if repo is not three-ts-types', async () => {
+        const mock = nock('https://api.github.com');
+
+        // Receive a webhook event
+        await probot.receive({
+            name: 'push',
+            payload: {
+                ref: 'refs/heads/master',
+                repository: {
+                    name: 'DefinitelyTyped',
+                },
+            },
+        });
+
+        expect(mock.pendingMocks()).toStrictEqual([]);
+        expect(mockCreatePRtoDT).not.toHaveBeenCalled();
     });
 
     afterEach(() => {
         nock.cleanAll();
         nock.enableNetConnect();
+        jest.clearAllMocks();
     });
 });
-
-// For more information about testing with Nock see:
-// https://github.com/nock/nock

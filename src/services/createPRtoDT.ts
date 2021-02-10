@@ -14,7 +14,7 @@ import {
     DEFAULT_REVIEWERS,
 } from '../references/constants';
 
-export default async function createPRtoDT(context: Context) {
+export async function createPRtoDT(context: Context) {
     const modifiedFiles = getModifiedFiles(context.payload.commits, filename => filename.includes('types/three'));
 
     const { status } = await context.octokit.repos
@@ -69,12 +69,14 @@ export default async function createPRtoDT(context: Context) {
                     context.log.info('file does not exist at destination');
                     return { status: 204, data: { content: '', sha: '' } };
                 });
+
             if (status === 204) {
                 // the files doesn't exist, we have to create it
                 await context.octokit.repos.createOrUpdateFileContents({
                     owner: REPO_OWNER,
                     repo: DESTINATION_REPO,
                     path: file,
+                    branch: BOT_BRANCH_NAME,
                     message: `Syncronize ${file}`,
                     // @ts-expect-error thinks content isn't defined
                     content: originalData.content,
@@ -90,6 +92,7 @@ export default async function createPRtoDT(context: Context) {
                     owner: REPO_OWNER,
                     repo: DESTINATION_REPO,
                     path: file,
+                    branch: BOT_BRANCH_NAME,
                     message: `Syncronize ${file}`,
                     // @ts-expect-error thinks content isn't defined
                     content: originalData.content,
@@ -133,9 +136,9 @@ export default async function createPRtoDT(context: Context) {
                 issue_number: number,
                 labels: [BOT_LABEL_NAME],
             });
-
-            context.log.info('completed');
         }
+
+        context.log.info('completed');
     } catch (err) {
         context.log.error(err);
     }

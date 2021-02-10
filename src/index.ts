@@ -1,6 +1,6 @@
 import { Probot } from 'probot';
 
-import createPRtoDT from './services/createPRtoDT';
+import { createPRtoDT } from './services/createPRtoDT';
 
 const REPO_NAME = 'three-ts-types';
 
