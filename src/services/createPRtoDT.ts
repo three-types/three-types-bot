@@ -48,59 +48,65 @@ export async function createPRtoDT(context: Context) {
         }
 
         // now we do some file magic
-        await mapSeries(async file => {
-            // get the original content
-            const { data: originalData } = await context.octokit.repos.getContent({
-                owner: REPO_OWNER,
-                repo: ORIGIN_REPO,
-                path: file,
-                ref: 'master',
-            });
+        await Promise.all(
+            modifiedFiles.map(async file => {
+                // get the original content
+                const { data: originalData } = await context.octokit.repos.getContent({
+                    owner: REPO_OWNER,
+                    repo: ORIGIN_REPO,
+                    path: file,
+                    ref: 'master',
+                });
+                context.log.info('found data on original branch');
 
-            // see if we can get the content at the destination
-            const { status, data: destinationData } = await context.octokit.repos
-                .getContent({
-                    owner: REPO_OWNER,
-                    repo: DESTINATION_REPO,
-                    path: file,
-                    ref: BOT_BRANCH_NAME,
-                })
-                .catch(() => {
-                    context.log.info('file does not exist at destination');
-                    return { status: 204, data: { content: '', sha: '' } };
-                });
+                // see if we can get the content at the destination
+                const { status, data: destinationData } = await context.octokit.repos
+                    .getContent({
+                        owner: REPO_OWNER,
+                        repo: DESTINATION_REPO,
+                        path: file,
+                        ref: BOT_BRANCH_NAME,
+                    })
+                    .catch(() => {
+                        context.log.info('file does not exist at destination');
+                        return { status: 204, data: { content: '', sha: '' } };
+                    });
 
-            if (status === 204) {
-                // the files doesn't exist, we have to create it
-                await context.octokit.repos.createOrUpdateFileContents({
-                    owner: REPO_OWNER,
-                    repo: DESTINATION_REPO,
-                    path: file,
-                    branch: BOT_BRANCH_NAME,
-                    message: `Syncronize ${file}`,
+                if (status === 204) {
+                    context.log.info('file does not exist');
+                    // the files doesn't exist, we have to create it
+                    await context.octokit.repos.createOrUpdateFileContents({
+                        owner: REPO_OWNER,
+                        repo: DESTINATION_REPO,
+                        path: file,
+                        branch: BOT_BRANCH_NAME,
+                        message: `Syncronize ${file}`,
+                        // @ts-expect-error thinks content isn't defined
+                        content: originalData.content,
+                    });
+                    return;
                     // @ts-expect-error thinks content isn't defined
-                    content: originalData.content,
-                });
-                return;
-                // @ts-expect-error thinks content isn't defined
-            } else if (originalData.content === destinationData.content) {
-                // files are equal, nothing to do here
-                return;
-            } else {
-                // the files exists and we're updating it
-                await context.octokit.repos.createOrUpdateFileContents({
-                    owner: REPO_OWNER,
-                    repo: DESTINATION_REPO,
-                    path: file,
-                    branch: BOT_BRANCH_NAME,
-                    message: `Syncronize ${file}`,
-                    // @ts-expect-error thinks content isn't defined
-                    content: originalData.content,
-                    // @ts-expect-error thinks sha isn't defined
-                    sha: destinationData.sha,
-                });
-            }
-        }, modifiedFiles);
+                } else if (originalData.content === destinationData.content) {
+                    // files are equal, nothing to do here
+                    context.log.info('file is equal');
+                    return;
+                } else {
+                    context.log.info('file exists');
+                    // the files exists and we're updating it
+                    await context.octokit.repos.createOrUpdateFileContents({
+                        owner: REPO_OWNER,
+                        repo: DESTINATION_REPO,
+                        path: file,
+                        branch: BOT_BRANCH_NAME,
+                        message: `Syncronize ${file}`,
+                        // @ts-expect-error thinks content isn't defined
+                        content: originalData.content,
+                        // @ts-expect-error thinks sha isn't defined
+                        sha: destinationData.sha,
+                    });
+                }
+            }),
+        );
 
         // check if there's a PR with the label attached
         const doesBranchAlreadyHavePr = await checkPRList(
