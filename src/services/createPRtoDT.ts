@@ -42,7 +42,7 @@ export async function createPRtoDT(context: Context) {
             await context.octokit.git.createRef({
                 owner: REPO_OWNER,
                 repo: DESTINATION_REPO,
-                ref: BOT_BRANCH_NAME,
+                ref: `refs/head/${BOT_BRANCH_NAME}`,
                 sha: data.commit.sha,
             });
         }
