@@ -1,7 +1,6 @@
 import { Context } from 'probot';
 
 import { getModifiedFiles } from '../helpers/files';
-import { mapSeries } from '../helpers/asyncUtil';
 import { checkPRList } from '../helpers/pulls';
 
 import {
