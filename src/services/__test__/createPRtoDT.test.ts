@@ -177,7 +177,7 @@ describe('My Probot app', () => {
                     sha: 'sha',
                 },
             })
-            .post(`/repos/${REPO_OWNER}/${DESTINATION_REPO}/git/refs`)
+            .patch(`/repos/${REPO_OWNER}/${DESTINATION_REPO}/git/refs/head%2Fthree-types-bot-updates`)
             .reply(200)
             .get(`/repos/${REPO_OWNER}/${ORIGIN_REPO}/contents/${FILE_NAME}?ref=master`)
             .reply(200, {

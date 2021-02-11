@@ -54,6 +54,7 @@ export async function createPRtoDT(context: Context) {
                     owner: REPO_OWNER,
                     repo: ORIGIN_REPO,
                     path: file,
+                    ref: 'master',
                 });
                 context.log.info('found data on original branch');
 
@@ -63,7 +64,7 @@ export async function createPRtoDT(context: Context) {
                         owner: REPO_OWNER,
                         repo: DESTINATION_REPO,
                         path: file,
-                        ref: `head/${BOT_BRANCH_NAME}`,
+                        ref: BOT_BRANCH_NAME,
                     })
                     .catch(() => {
                         context.log.info('file does not exist at destination');
