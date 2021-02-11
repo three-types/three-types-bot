@@ -38,10 +38,10 @@ export async function createPRtoDT(context: Context) {
                 branch: PR_DESTINATION_BRANCH_NAME,
             });
             // create the three-types-bot-updates branch
-            await context.octokit.git.createRef({
+            await context.octokit.git.updateRef({
                 owner: REPO_OWNER,
                 repo: DESTINATION_REPO,
-                ref: `refs/head/${BOT_BRANCH_NAME}`,
+                ref: `head/${BOT_BRANCH_NAME}`,
                 sha: data.commit.sha,
             });
         }
@@ -54,7 +54,6 @@ export async function createPRtoDT(context: Context) {
                     owner: REPO_OWNER,
                     repo: ORIGIN_REPO,
                     path: file,
-                    ref: 'master',
                 });
                 context.log.info('found data on original branch');
 
@@ -64,7 +63,7 @@ export async function createPRtoDT(context: Context) {
                         owner: REPO_OWNER,
                         repo: DESTINATION_REPO,
                         path: file,
-                        ref: BOT_BRANCH_NAME,
+                        ref: `head/${BOT_BRANCH_NAME}`,
                     })
                     .catch(() => {
                         context.log.info('file does not exist at destination');
